@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_DATA = [
     "data/processed_data/hk_v3/hydraulic_results/segment_hydraulics.csv",
     "data/processed_data/hk_v3/hydraulic_results/nodes_all.csv",
@@ -51,30 +51,31 @@ REQUIRED_DATA = [
     "data/figure2/LA_border/City_Boundary.prj",
 ]
 REQUIRED_CODE = [
-    "hk_HRSNM_v7_5_test2.py",
-    "toronto_HRSNM_v7_5_test1.py",
-    "la_HRSNM_v7_5_test1.py",
-    "HRSNM(v7 Fig1_4_test2).py",
-    "HRSNM(v Fig2_9).py",
-    "HRSNM(v7 Figure3).py",
-    "HRSNM(v7 Fig4_2).py",
-    "HRSNM(v7 Fig5_3).py",
-    "hrsnm_dissolved_oxygen.py",
-    "hrsnm_node_mixing.py",
-    "hrsnm_scenarios.py",
-    "corrosion_criterion.py",
-    "run_full27_figures_12345.sh",
-    "run_parallel_scenarios.py",
-    "run_single_scenario.py",
-    "export_fig1_results_text.py",
-    "export_fig2_results_text.py",
-    "plot_figure_s4_50year_failure.py",
-    "test_corrosion_criterion.py",
-    "test_hrsnm_node_mixing.py",
-    "test_hrsnm_scenarios.py",
-    "test_hrsnm_dissolved_oxygen.py",
-    "test_figure2_inputs.py",
-    "verify_figure_outputs.py",
+    "hrsnm/hong_kong.py",
+    "hrsnm/toronto.py",
+    "hrsnm/los_angeles.py",
+    "hrsnm/dissolved_oxygen.py",
+    "hrsnm/node_mixing.py",
+    "hrsnm/scenarios.py",
+    "hrsnm/corrosion.py",
+    "figures/figure_1.py",
+    "figures/figure_2.py",
+    "figures/figure_3.py",
+    "figures/figure_4.py",
+    "figures/figure_5.py",
+    "figures/figure_s4.py",
+    "scripts/run_all.sh",
+    "scripts/run_parallel_scenarios.py",
+    "scripts/run_single_scenario.py",
+    "scripts/export_figure_1_results.py",
+    "scripts/export_figure_2_results.py",
+    "scripts/validate_repository.py",
+    "scripts/verify_figure_outputs.py",
+    "tests/test_corrosion.py",
+    "tests/test_node_mixing.py",
+    "tests/test_scenarios.py",
+    "tests/test_dissolved_oxygen.py",
+    "tests/test_figure_2_inputs.py",
     "environment.yml",
     "README.md",
     "README_CN.md",
@@ -116,7 +117,7 @@ def main() -> None:
             )
 
     model_expectations = {
-        "hk_HRSNM_v7_5_test2.py": (
+        "hrsnm/hong_kong.py": (
             "TEMP = 29.0",
             "COD_PER_SOURCE = 488.0",
             "COD_CI = 52.0",
@@ -124,12 +125,12 @@ def main() -> None:
             "R_GAS * T_H2S_K",
             "saturation_do_mg_l(temp_c)",
         ),
-        "toronto_HRSNM_v7_5_test1.py": (
+        "hrsnm/toronto.py": (
             "CORR_VALUE = 0.8",
             "R_GAS * T_H2S_K",
             "saturation_do_mg_l(temp_c)",
         ),
-        "la_HRSNM_v7_5_test1.py": (
+        "hrsnm/los_angeles.py": (
             "CORR_VALUE = 0.8",
             "R_GAS * T_H2S_K",
             "saturation_do_mg_l(temp_c)",

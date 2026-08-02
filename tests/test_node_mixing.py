@@ -3,11 +3,11 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from hk_HRSNM_v7_5_test2 import generate_source_concentrations_hk
-from la_HRSNM_v7_5_test1 import generate_source_concentrations_la
-from toronto_HRSNM_v7_5_test1 import generate_source_concentrations_toronto
+from hrsnm.hong_kong import generate_source_concentrations_hk
+from hrsnm.los_angeles import generate_source_concentrations_la
+from hrsnm.toronto import generate_source_concentrations_toronto
 
-from hrsnm_node_mixing import (
+from hrsnm.node_mixing import (
     apply_do_overrides,
     build_node_dwf,
     concentration_node_order,

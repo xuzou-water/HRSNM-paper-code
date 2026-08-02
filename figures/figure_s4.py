@@ -18,14 +18,14 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.lines import Line2D
 
-from corrosion_criterion import (
+from hrsnm.corrosion import (
     DEFAULT_CORROSION_HORIZON_YEARS,
     DEFAULT_WALL_THICKNESS_FRACTION,
     corrosion_exceeds_assumed_wall,
 )
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_RESULTS_ROOT = SCRIPT_DIR.parent / f"{SCRIPT_DIR.name}_results"
 DEFAULT_BORDER_ROOT = SCRIPT_DIR / "data" / "figure2"
 DPI = 600

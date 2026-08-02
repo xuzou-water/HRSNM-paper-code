@@ -4,10 +4,10 @@ from unittest.mock import patch
 
 import numpy as np
 
-import hk_HRSNM_v7_5_test2 as hk_model
-import la_HRSNM_v7_5_test1 as la_model
-import toronto_HRSNM_v7_5_test1 as toronto_model
-from hrsnm_dissolved_oxygen import saturation_do_mg_l
+from hrsnm import hong_kong as hk_model
+from hrsnm import los_angeles as la_model
+from hrsnm import toronto as toronto_model
+from hrsnm.dissolved_oxygen import saturation_do_mg_l
 
 
 CITY_MODELS = (hk_model, toronto_model, la_model)

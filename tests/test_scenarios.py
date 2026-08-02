@@ -1,6 +1,6 @@
 import unittest
 
-from hrsnm_scenarios import scenario_axes, scenario_count
+from hrsnm.scenarios import scenario_axes, scenario_count
 
 
 class ScenarioGridTests(unittest.TestCase):

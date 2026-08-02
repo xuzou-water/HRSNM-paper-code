@@ -1,40 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 17 12:34:04 2026
+Created on Mon Jun  8 16:57:11 2026
 
 @author: zouxu
 """
 
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun  8 16:59:22 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jun  6 18:24:43 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-LA Sewer Network Water Quality Simulation & H2S Emission Analysis
-=================================================================
+Toronto Sewer Network Water Quality Simulation & H2S Emission Analysis
+======================================================================
 读取方式与代码1(HK)完全一致：直接读取 segment_hydraulics.csv + nodes_all.csv，
 不切分、不聚合，所有结果以 segment 为单位输出。
 
 Baseline:
-    Temperature = 26 °C
-    COD mean    = 399.17, COD_CI = 39.917 (10% of mean)
-    SO4 mean    = 20,     SO4_CI = 10
-
-NOTE (本次修改):
-    计算 H2S 溢出 distance 时，只对满足
-        us_is_original OR ds_is_original OR (起点) is_original
-    的 segment 进行计算，其余 distance 置为 NaN。
+    Temperature = 18 °C
+    COD mean    = 436,  COD_CI = 27.2
+    SO4 mean    = 20,   SO4_CI = 10
 """
 
 import argparse
@@ -49,15 +30,15 @@ import pandas as pd
 import networkx as nx
 from tqdm import tqdm
 
-from hrsnm_dissolved_oxygen import saturation_do_mg_l
-from hrsnm_node_mixing import (
+from hrsnm.dissolved_oxygen import saturation_do_mg_l
+from hrsnm.node_mixing import (
     apply_do_overrides,
     build_node_dwf,
     concentration_node_order,
     mix_node_concentration,
     node_flow_balance_summary,
 )
-from hrsnm_scenarios import scenario_axes
+from hrsnm.scenarios import scenario_axes
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -69,22 +50,22 @@ RUN_SCENARIO_ANALYSIS = False
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 路径 (LA)
+# 路径 (Toronto)
 # ═══════════════════════════════════════════════════════════════════════════════
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(SCRIPT_DIR, "data", "processed_data", "la_v3")
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(SCRIPT_DIR, "data", "processed_data", "toronto_v3")
 HYD_DIR = os.path.join(DATA_DIR, "hydraulic_results")
 DEFAULT_OUT_DIR = os.path.join(
-    SCRIPT_DIR, "node_dwf_fix_results", "LA_v3", "biochemical_results"
+    SCRIPT_DIR, "node_dwf_fix_results", "toronto_v3", "biochemical_results"
 )
 OUT_DIR = DEFAULT_OUT_DIR
 
 # 只需要 segment 水力 + 节点
 SEG_HYD_CSV = os.environ.get(
-    "HRSNM_LA_SEGMENTS_CSV", os.path.join(HYD_DIR, "segment_hydraulics.csv")
+    "HRSNM_TORONTO_SEGMENTS_CSV", os.path.join(HYD_DIR, "segment_hydraulics.csv")
 )
 NODES_ALL_CSV = os.environ.get(
-    "HRSNM_LA_NODES_CSV", os.path.join(HYD_DIR, "nodes_all.csv")
+    "HRSNM_TORONTO_NODES_CSV", os.path.join(HYD_DIR, "nodes_all.csv")
 )
 
 
@@ -99,8 +80,8 @@ AF = 1.05
 UHO2, KSW, KO = 4, 1, 0.5
 AW = 1.07
 
-# --- LA 基线温度 ---
-TEMP = 26.0
+# --- Toronto 基线温度 ---
+TEMP = 18.0
 
 YHF, YHW = 0.55, 0.55
 QM, KH1, KX1 = 1, 5, 1.5
@@ -128,15 +109,15 @@ F_SA  = 0.26
 F_XS1 = 0.14
 F_XS2 = 1-F_XHW-F_SF-F_SA-F_XS1
 
-# --- LA 基线浓度参数 ---
-SO4_MEAN_LA = 20.0
-SO4_CI_LA   = 10.0
+# --- Toronto 基线浓度参数 ---
+SO4_MEAN_TORONTO = 20.0
+SO4_CI_TORONTO   = 10.0
 
-COD_PER_SOURCE_LA = 399.17
-COD_CI_LA         = 399.17 * 0.10   # = 39.917
+COD_PER_SOURCE_TORONTO = 436.0
+COD_CI_TORONTO         = 27.2
 
-SO4_CV_BASELINE = SO4_CI_LA / SO4_MEAN_LA
-COD_CV_BASELINE = COD_CI_LA / COD_PER_SOURCE_LA
+SO4_CV_BASELINE = SO4_CI_TORONTO / SO4_MEAN_TORONTO
+COD_CV_BASELINE = COD_CI_TORONTO / COD_PER_SOURCE_TORONTO
 
 CONC_KEYS = [
     'XHw', 'Xs1', 'Xs2', 'SO', 'SF', 'Sac',
@@ -176,21 +157,6 @@ EPS = 1e-10
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 工具：布尔列规范化
-# ═══════════════════════════════════════════════════════════════════════════════
-def _to_bool_series(series):
-    """把各种写法 (TRUE/True/true/1/yes/T) 统一转换为 bool, NaN -> False。"""
-    if series.dtype == bool:
-        return series.fillna(False)
-    return (
-        series.astype(str)
-              .str.strip()
-              .str.upper()
-              .isin(['TRUE', '1', 'YES', 'T'])
-    )
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # Part 1 — 读取 segment / node  (直读, 不再拼接 mid 节点)
 # ═══════════════════════════════════════════════════════════════════════════════
 def _safe_read_csv(path, name):
@@ -203,7 +169,7 @@ def load_segments(seg_csv=SEG_HYD_CSV, nodes_csv=NODES_ALL_CSV):
     """
     直接读取:
       - segment_hydraulics.csv  每根 segment 的水力 + 几何 + 端点节点
-      - nodes_all.csv           所有节点坐标 / invert / type / is_original
+      - nodes_all.csv           所有节点坐标 / invert / type
     """
     print("  Reading segment_hydraulics.csv ...")
     seg = _safe_read_csv(seg_csv, "segment_hydraulics.csv")
@@ -212,11 +178,6 @@ def load_segments(seg_csv=SEG_HYD_CSV, nodes_csv=NODES_ALL_CSV):
     print("  Reading nodes_all.csv ...")
     nodes_df = _safe_read_csv(nodes_csv, "nodes_all.csv")
     nodes_df['node'] = nodes_df['node'].astype(str)
-    if 'is_original' in nodes_df.columns:
-        nodes_df['is_original'] = _to_bool_series(nodes_df['is_original'])
-    else:
-        print("    ⚠ nodes_all.csv 缺少 is_original 列，默认全部 False。")
-        nodes_df['is_original'] = False
     print(f"    nodes  : {len(nodes_df):,}")
 
     # 类型规范
@@ -225,18 +186,16 @@ def load_segments(seg_csv=SEG_HYD_CSV, nodes_csv=NODES_ALL_CSV):
         if c in seg.columns:
             seg[c] = seg[c].astype(str)
 
-    # us/ds 是否原始节点 (来自 segment_hydraulics.csv)
-    if 'us_is_original' in seg.columns:
-        seg['us_is_original'] = _to_bool_series(seg['us_is_original'])
-    else:
-        print("    ⚠ segment_hydraulics.csv 缺少 us_is_original 列，默认全部 False。")
-        seg['us_is_original'] = False
+    # ★ 新增：布尔列规范化（CSV 里是 TRUE/FALSE 字符串）
+    def _to_bool(s):
+        return s.astype(str).str.strip().str.upper().isin(['TRUE', '1', 'YES', 'T'])
 
-    if 'ds_is_original' in seg.columns:
-        seg['ds_is_original'] = _to_bool_series(seg['ds_is_original'])
-    else:
-        print("    ⚠ segment_hydraulics.csv 缺少 ds_is_original 列，默认全部 False。")
-        seg['ds_is_original'] = False
+    for c in ['us_is_original', 'ds_is_original']:
+        if c in seg.columns:
+            seg[c] = _to_bool(seg[c])
+
+    if 'is_original' in nodes_df.columns:
+        nodes_df['is_original'] = _to_bool(nodes_df['is_original'])
 
     # 重命名 → name/start/end/v/depth/flowrate
     seg = seg.rename(columns={
@@ -263,37 +222,6 @@ def load_segments(seg_csv=SEG_HYD_CSV, nodes_csv=NODES_ALL_CSV):
 
     print(f"    segments (模拟单元): {len(seg):,}")
     return seg, nodes_df
-
-
-def attach_original_flags(pipes, nodes_df):
-    """
-    把起点节点 (start = us_node) 的 is_original 合并进 segment，
-    生成列 node_is_original。同时确保 us_is_original / ds_is_original 为 bool。
-    """
-    pipes = pipes.copy()
-
-    if 'us_is_original' not in pipes.columns:
-        pipes['us_is_original'] = False
-    if 'ds_is_original' not in pipes.columns:
-        pipes['ds_is_original'] = False
-    pipes['us_is_original'] = _to_bool_series(pipes['us_is_original'])
-    pipes['ds_is_original'] = _to_bool_series(pipes['ds_is_original'])
-
-    node_orig = (
-        nodes_df[['node', 'is_original']]
-        .rename(columns={'node': 'start', 'is_original': 'node_is_original'})
-        .drop_duplicates(subset='start')
-    )
-    pipes = pipes.merge(node_orig, on='start', how='left')
-    pipes['node_is_original'] = _to_bool_series(
-        pipes['node_is_original'].fillna(False)
-    )
-
-    n_orig = (pipes['us_is_original'] |
-              pipes['ds_is_original'] |
-              pipes['node_is_original']).sum()
-    print(f"  原始节点相关 segment 数 (将参与 distance 计算): {n_orig:,} / {len(pipes):,}")
-    return pipes
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -504,15 +432,14 @@ def compute_reactions_batch(conc, A_V, HRT, vel, diam, slope, temp_c, is_force_m
     )
     return out
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Part 5 — 源浓度 & 主循环
 # ═══════════════════════════════════════════════════════════════════════════════
-def generate_source_concentrations_la(source_nodes,
-                                      so4_mean=SO4_MEAN_LA,
-                                      cod_mean=COD_PER_SOURCE_LA,
-                                      so4_ci=SO4_CI_LA,
-                                      cod_ci=COD_CI_LA):
+def generate_source_concentrations_toronto(source_nodes,
+                                           so4_mean=SO4_MEAN_TORONTO,
+                                           cod_mean=COD_PER_SOURCE_TORONTO,
+                                           so4_ci=SO4_CI_TORONTO,
+                                           cod_ci=COD_CI_TORONTO):
     np.random.seed(20)
     sc = np.zeros((len(source_nodes), N_CONC))
     for i, _ in enumerate(source_nodes):
@@ -526,13 +453,13 @@ def generate_source_concentrations_la(source_nodes,
     return sc
 
 
-def run_simulation_la(pipes_df, topo, node_dwf, positive_dwf_nodes,
-                      so4_mean=SO4_MEAN_LA,
-                      cod_mean=COD_PER_SOURCE_LA,
-                      so4_ci=SO4_CI_LA,
-                      cod_ci=COD_CI_LA,
-                      air_dosage_nodes=None,
-                      temp_c=TEMP):
+def run_simulation_toronto(pipes_df, topo, node_dwf, positive_dwf_nodes,
+                           so4_mean=SO4_MEAN_TORONTO,
+                           cod_mean=COD_PER_SOURCE_TORONTO,
+                           so4_ci=SO4_CI_TORONTO,
+                           cod_ci=COD_CI_TORONTO,
+                           air_dosage_nodes=None,
+                           temp_c=TEMP):
     saturation_do = saturation_do_mg_l(temp_c)
     (G, source_nodes, level_to_nodes, max_level,
      pipe_name2idx, node2idx, idx2node,
@@ -559,7 +486,7 @@ def run_simulation_la(pipes_df, topo, node_dwf, positive_dwf_nodes,
         is_fm = np.zeros(len(pipes_df), dtype=bool)
 
     concentration_nodes = concentration_node_order(source_nodes, positive_dwf_nodes)
-    local_inflow_conc = generate_source_concentrations_la(
+    local_inflow_conc = generate_source_concentrations_toronto(
         concentration_nodes,
         so4_mean=so4_mean, cod_mean=cod_mean,
         so4_ci=so4_ci, cod_ci=cod_ci
@@ -624,9 +551,7 @@ def run_simulation_la(pipes_df, topo, node_dwf, positive_dwf_nodes,
 # ═══════════════════════════════════════════════════════════════════════════════
 # Part 6 — 后处理 & 保存
 # ═══════════════════════════════════════════════════════════════════════════════
-
-
-def postprocess_and_save_la(pipes_split, conc_in, conc_out, tag="", temp_c=TEMP):
+def postprocess_and_save_toronto(pipes_split, conc_in, conc_out, tag="", temp_c=TEMP):
     p = pipes_split.copy()
     suffix = f"_{tag}" if tag else ""
 
@@ -668,7 +593,7 @@ def postprocess_and_save_la(pipes_split, conc_in, conc_out, tag="", temp_c=TEMP)
         p.loc[is_fm, 'ra'] = 0.0
     # ★ 新增结束
 
-    out_path = os.path.join(OUT_DIR, f"la_result_segments_v7{suffix}.csv")
+    out_path = os.path.join(OUT_DIR, f"toronto_result_segments_v7{suffix}.csv")
     p.to_csv(out_path, index=False, encoding='utf-8-sig')
     print(f"  Segment-level WQ results → {out_path}")
     return p
@@ -703,20 +628,14 @@ def calc_headspace_h2s_ppm_from_total_sulfide(
     return ppmv, sh2s_w_g_m3_as_S
 
 
-def compute_h2s_emission_la(pipes_split, tag="", temp_c=TEMP):
+def compute_h2s_emission_toronto(pipes_split, tag="", temp_c=TEMP, nodes_df=None):  # ★ 修改：新增 nodes_df
     suffix = f"_{tag}" if tag else ""
     fp = pipes_split.copy()
-
-    # 缺失的原始节点标志列做兜底
-    for col in ['us_is_original', 'ds_is_original', 'node_is_original']:
-        if col not in fp.columns:
-            fp[col] = False
-        fp[col] = _to_bool_series(fp[col])
 
     df = pd.DataFrame({
         'pipe_name': fp['name'].values,
         'node_name': fp['start'].values,
-        'SHS': fp['SHS_in'].values, #[g S/m³]
+        'SHS': fp['SHS_in'].values,
         'velocity': fp['v'].values,
         'depth': fp['depth'].values,
         'diameter': fp['diameter'].values,
@@ -735,10 +654,29 @@ def compute_h2s_emission_la(pipes_split, tag="", temp_c=TEMP):
         'length': fp['length'].values,
         'flowrate': fp['flowrate'].values * 86400,
         'temp_c': temp_c,
-        'us_is_original': fp['us_is_original'].values,
-        'ds_is_original': fp['ds_is_original'].values,
-        'node_is_original': fp['node_is_original'].values,
+        # ★ 新增：来自 segment_hydraulics.csv 的端点原始标记
+        'us_is_original': (fp['us_is_original'].values
+                           if 'us_is_original' in fp.columns else True),
+        'ds_is_original': (fp['ds_is_original'].values
+                           if 'ds_is_original' in fp.columns else True),
     })
+
+    # ★ 新增：从 nodes_all 取 is_original（df 里 node_name = us_node）
+    if nodes_df is not None and 'is_original' in nodes_df.columns:
+        node_orig = (nodes_df[['node', 'is_original']]
+                     .rename(columns={'node': 'node_name',
+                                      'is_original': 'node_is_original'})
+                     .drop_duplicates('node_name'))
+        df = df.merge(node_orig, on='node_name', how='left')
+        df['node_is_original'] = df['node_is_original'].fillna(False)
+    else:
+        df['node_is_original'] = False
+
+    # ★ 新增：us_is_original / ds_is_original / is_original 任一为 True 才算 distance
+    df['us_is_original'] = df['us_is_original'].fillna(False).astype(bool)
+    df['ds_is_original'] = df['ds_is_original'].fillna(False).astype(bool)
+    df['node_is_original'] = df['node_is_original'].astype(bool)
+    original_mask = (df['us_is_original'] | df['ds_is_original'] | df['node_is_original'])
 
     PH_H2S = 7.5
     T_H2S_K = temp_c + 273.15
@@ -800,39 +738,25 @@ def compute_h2s_emission_la(pipes_split, tag="", temp_c=TEMP):
 
     df['s'] = df['slope'].clip(lower=0)
 
-    # ── 只有 us_is_original / ds_is_original / 起点 is_original 为真时才算 distance ──
-    orig_mask = (
-        df['us_is_original'].values |
-        df['ds_is_original'].values |
-        df['node_is_original'].values
-    )
-    n_eval = int(orig_mask.sum())
-    print(f"  distance 仅对原始节点相关 segment 计算: {n_eval:,} / {len(df):,}")
-
     res_cols = [
         'pipe_name', 'node_name', 'SHS', 'SH2S_w', 'CH4', 'SH2S', 'SCH4',
         'dcorr_dt', 'us_x', 'us_y', 'HRT', 'SO', 'XHw', 'flowrate', 's',
         'velocity', 'surface_width', 'unwetted_perimeter', 'A_gas',
         'gas_velocity', 'gas_flow_rate', 'delta_P', 'v_pick', 'Q_pick',
         'length', 'H2S_emission_rate', 'distance', 'temp_c',
+        # ★ 新增：输出原始标记列，便于核对
         'us_is_original', 'ds_is_original', 'node_is_original'
     ]
 
     for c_ppm, label in [(0.1, ""), (0.01, "_odour")]:
         c_tgt = c_ppm * 1e-6 * (RHO_AIR * M_H2S / M_AIR)
         denom = math.pi * U_WIND * SIGMA_Y_A * SIGMA_Z_C * c_tgt
-
-        # 同时满足: 有溢出 + 是原始节点相关 segment
-        valid = (df['H2S_emission_rate'].values > 0) & orig_mask
-
+        valid = (df['H2S_emission_rate'] > 0) & original_mask   # ★ 修改：加 original_mask
         df['distance'] = np.nan
-        df.loc[valid, 'distance'] = (
-            df.loc[valid, 'H2S_emission_rate'] / denom
-        ) ** (1 / (2 * SIGMA_B))
-
+        df.loc[valid, 'distance'] = (df.loc[valid, 'H2S_emission_rate'] / denom) ** (1 / (2 * SIGMA_B))
         out = os.path.join(
             OUT_DIR,
-            f"la_emission_radius{label}_segments_v7{suffix}.csv"
+            f"toronto_emission_radius{label}_segments_v7{suffix}.csv"
         )
         df[res_cols].to_csv(out, index=False, encoding='utf-8-sig')
         print(f"  H2S({c_ppm} ppm) → {out}")
@@ -843,8 +767,8 @@ def compute_h2s_emission_la(pipes_split, tag="", temp_c=TEMP):
 # ═══════════════════════════════════════════════════════════════════════════════
 # Part 8 — Scenario
 # ═══════════════════════════════════════════════════════════════════════════════
-def run_temp_so4_cod_scenarios_la(
-        pipes_split, topo, node_dwf, positive_dwf_nodes,
+def run_temp_so4_cod_scenarios_toronto(
+        pipes_split, topo, node_dwf, positive_dwf_nodes, nodes_df=None,
         scenario_grid="full27"):
     temp_values, so4_values, cod_values = scenario_axes(scenario_grid)
 
@@ -869,18 +793,20 @@ def run_temp_so4_cod_scenarios_la(
                 print(f"\n--- [{run_idx}/{n_total}] {tag} "
                       f"(SO4_CI={so4_ci_dyn:.3f}, COD_CI={cod_ci_dyn:.3f}) ---")
 
-                ci, co, _ = run_simulation_la(
+                ci, co, _ = run_simulation_toronto(
                     pipes_split, topo, node_dwf, positive_dwf_nodes,
                     so4_mean=so4_val, cod_mean=cod_val,
                     so4_ci=so4_ci_dyn, cod_ci=cod_ci_dyn,
                     temp_c=temp_val
                 )
 
-                po = postprocess_and_save_la(
+                po = postprocess_and_save_toronto(
                     pipes_split, ci, co, tag=tag, temp_c=temp_val
                 )
 
-                emission_df = compute_h2s_emission_la(po, tag=tag, temp_c=temp_val)
+                emission_df = compute_h2s_emission_toronto(
+                    po, tag=tag, temp_c=temp_val, nodes_df=nodes_df  # ★ 修改：传入 nodes_df
+                )
 
                 scenario_summary.append({
                     'tag': tag,
@@ -910,7 +836,7 @@ def run_temp_so4_cod_scenarios_la(
 # ═══════════════════════════════════════════════════════════════════════════════
 def print_basic_diagnostics(pipes_split):
     print("\n" + "=" * 70)
-    print("Hydraulic input diagnostics (LA, segment-level)")
+    print("Hydraulic input diagnostics (Toronto, segment-level)")
     print("=" * 70)
 
     df = pipes_split
@@ -931,9 +857,9 @@ def print_basic_diagnostics(pipes_split):
 # Part 9 — 导出 Shapefile
 # ═══════════════════════════════════════════════════════════════════════════════
 def export_segments_to_shapefile(pipes_result, emission_df=None,
-                                 tag="", crs="EPSG:26911"):
+                                 tag="", crs="EPSG:26917"):
     """
-    crs: LA 常用 UTM 11N = "EPSG:26911"；
+    crs: Toronto 常用 UTM 17N = "EPSG:26917"；
          若 us_x/us_y 实际为经纬度则用 "EPSG:4326"。
     """
     try:
@@ -987,7 +913,7 @@ def export_segments_to_shapefile(pipes_result, emission_df=None,
     base_attrs = ['name', 'start', 'end', 'pipe_type', 'catchment', 'regime',
                   'length', 'diameter', 'slope', 'v', 'depth', 'flowrate',
                   'In_elev', 'Out_elev', 'HRT', 'A_V', 'Vg', 'Vw', 'Ag',
-                  'temp_c', 'us_is_original', 'ds_is_original', 'node_is_original']
+                  'temp_c']
     conc_attrs = []
     for k in CONC_KEYS:
         conc_attrs += [f'{k}_in', f'{k}_out']
@@ -1027,12 +953,12 @@ def export_segments_to_shapefile(pipes_result, emission_df=None,
             [(orig, new) for orig, new in rename_map.items()],
             columns=['original_field', 'shapefile_field']
         )
-        map_csv = os.path.join(OUT_DIR, f"la_shapefile_field_map_v7{suffix}.csv")
+        map_csv = os.path.join(OUT_DIR, f"toronto_shapefile_field_map_v7{suffix}.csv")
         map_df.to_csv(map_csv, index=False, encoding='utf-8-sig')
         print(f"  Field-name map (>10 chars) → {map_csv}")
         gdf = gdf.rename(columns=rename_map)
 
-    shp_path = os.path.join(OUT_DIR, f"la_pipes_segments_v7{suffix}.shp")
+    shp_path = os.path.join(OUT_DIR, f"toronto_pipes_segments_v7{suffix}.shp")
     gdf.to_file(shp_path, driver="ESRI Shapefile", encoding="utf-8")
     print(f"  Pipe Shapefile ({len(gdf):,} segments) → {shp_path}")
 
@@ -1043,7 +969,7 @@ def export_segments_to_shapefile(pipes_result, emission_df=None,
 # 主流程
 # ═══════════════════════════════════════════════════════════════════════════════
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run the Los Angeles HRSNM baseline.")
+    parser = argparse.ArgumentParser(description="Run the Toronto HRSNM baseline.")
     parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR)
     parser.add_argument("--skip-shapefile", action="store_true")
     parser.add_argument(
@@ -1063,10 +989,10 @@ if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
 
     print("=" * 70)
-    print("LA Sewer Water Quality Simulation & H2S Analysis")
+    print("Toronto Sewer Water Quality Simulation & H2S Analysis")
     print("(segment-level only — NO re-splitting, NO aggregation)")
-    print(f"Baseline: T={TEMP}°C, SO4={SO4_MEAN_LA}±{SO4_CI_LA}, "
-          f"COD={COD_PER_SOURCE_LA}±{COD_CI_LA}")
+    print(f"Baseline: T={TEMP}°C, SO4={SO4_MEAN_TORONTO}±{SO4_CI_TORONTO}, "
+          f"COD={COD_PER_SOURCE_TORONTO}±{COD_CI_TORONTO}")
     print("=" * 70)
     print(f"\nRUN_SCENARIO_ANALYSIS = {RUN_SCENARIO_ANALYSIS}")
 
@@ -1076,23 +1002,20 @@ if __name__ == "__main__":
     print("\nStep 2: segment 几何计算")
     pipes_split = compute_geometry(pipes_split_raw)
 
-    print("\nStep 2b: 合并原始节点标志 (us/ds/起点 is_original)")
-    pipes_split = attach_original_flags(pipes_split, nodes_df)
-
-    split_csv = os.path.join(OUT_DIR, "la_biochemical_segments_from_hydraulics_v7.csv")
+    split_csv = os.path.join(OUT_DIR, "toronto_biochemical_segments_from_hydraulics_v7.csv")
     pipes_split.to_csv(split_csv, index=False, encoding='utf-8-sig')
     print(f"  Segment input snapshot → {split_csv}")
 
     print_basic_diagnostics(pipes_split)
 
     print("\nStep 3: 构建拓扑 (segment 级)")
-    removed_edges_csv = os.path.join(OUT_DIR, "la_removed_cycle_edges_v7.csv")
+    removed_edges_csv = os.path.join(OUT_DIR, "toronto_removed_cycle_edges_v7.csv")
     topo = build_topology(pipes_split, removed_edges_csv=removed_edges_csv)
 
     node_dwf, positive_dwf_nodes = build_node_dwf(nodes_df, topo[0].nodes())
     mixing_summary = node_flow_balance_summary(pipes_split, node_dwf)
     if mixing_summary['n_flow_balance_failures']:
-        raise RuntimeError(f"LA node flow-balance audit failed: {mixing_summary}")
+        raise RuntimeError(f"Toronto node flow-balance audit failed: {mixing_summary}")
     pd.DataFrame([mixing_summary]).to_csv(
         os.path.join(OUT_DIR, "node_dwf_mixing_summary_v7.csv"),
         index=False, encoding='utf-8-sig'
@@ -1104,26 +1027,28 @@ if __name__ == "__main__":
     print(f"Step 4: 基线模拟 (Temp={TEMP} °C)")
     print("=" * 70)
 
-    conc_in_base, conc_out_base, _ = run_simulation_la(
+    conc_in_base, conc_out_base, _ = run_simulation_toronto(
         pipes_split, topo, node_dwf, positive_dwf_nodes,
-        so4_mean=SO4_MEAN_LA, cod_mean=COD_PER_SOURCE_LA,
-        so4_ci=SO4_CI_LA, cod_ci=COD_CI_LA,
+        so4_mean=SO4_MEAN_TORONTO, cod_mean=COD_PER_SOURCE_TORONTO,
+        so4_ci=SO4_CI_TORONTO, cod_ci=COD_CI_TORONTO,
         temp_c=TEMP
     )
 
-    pipes_base = postprocess_and_save_la(
+    pipes_base = postprocess_and_save_toronto(
         pipes_split, conc_in_base, conc_out_base, tag="", temp_c=TEMP
     )
 
-    emission_base = compute_h2s_emission_la(pipes_base, tag="", temp_c=TEMP)
+    emission_base = compute_h2s_emission_toronto(
+        pipes_base, tag="", temp_c=TEMP, nodes_df=nodes_df  # ★ 修改：传入 nodes_df
+    )
 
     base_summary = {
         'n_segments': len(pipes_split),
         'temp_c': TEMP,
-        'so4_mean': SO4_MEAN_LA,
-        'so4_ci': SO4_CI_LA,
-        'cod_mean': COD_PER_SOURCE_LA,
-        'cod_ci': COD_CI_LA,
+        'so4_mean': SO4_MEAN_TORONTO,
+        'so4_ci': SO4_CI_TORONTO,
+        'cod_mean': COD_PER_SOURCE_TORONTO,
+        'cod_ci': COD_CI_TORONTO,
         'mean_SHS_in': pipes_base['SHS_in'].mean(),
         'mean_SHS_out': pipes_base['SHS_out'].mean(),
         'max_SHS_out': pipes_base['SHS_out'].max(),
@@ -1139,8 +1064,8 @@ if __name__ == "__main__":
     )
 
     if args.run_scenarios:
-        run_temp_so4_cod_scenarios_la(
-            pipes_split, topo, node_dwf, positive_dwf_nodes,
+        run_temp_so4_cod_scenarios_toronto(
+            pipes_split, topo, node_dwf, positive_dwf_nodes, nodes_df=nodes_df,
             scenario_grid=args.scenario_grid,
         )
     else:
@@ -1159,7 +1084,7 @@ if __name__ == "__main__":
             pipes_result=pipes_base,
             emission_df=emission_base,
             tag="",
-            crs="EPSG:26911"
+            crs="EPSG:26917"
         )
 
     print("\n" + "=" * 70)

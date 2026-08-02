@@ -38,7 +38,7 @@ import seaborn as sns
 from scipy import stats
 from scipy.spatial import cKDTree
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _parser = argparse.ArgumentParser(description="Generate HRSNM Figure 1.")
 _parser.add_argument(
     "--result-csv",

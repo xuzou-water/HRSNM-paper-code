@@ -42,11 +42,11 @@ from shapely.ops import unary_union
 
 import networkx as nx
 
-from corrosion_criterion import (
+from hrsnm.corrosion import (
     DEFAULT_CORROSION_RATE_THRESHOLD_MM_PER_YEAR,
     corrosion_exceedance_length_km,
 )
-from hrsnm_scenarios import scenario_axes, scenario_count
+from hrsnm.scenarios import scenario_axes, scenario_count
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
@@ -123,15 +123,16 @@ CORROSION_RATE_THRESHOLD_MM_PER_YEAR = (
 # ================================================================
 # 2. PATHS & SCENARIOS  (Code-1 v7 outputs)
 # ================================================================
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_BASE = os.environ.get(
     "HRSNM_FIG4_DATA_BASE",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "processed_data"),
+    os.path.join(REPO_ROOT, "data", "processed_data"),
 )
 
 output_dir = os.path.abspath(os.environ.get(
     "HRSNM_FIG4_OUT_DIR",
     os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        REPO_ROOT,
         "fig4_results_export",
     ),
 ))

@@ -3,8 +3,8 @@
 Export the Fig. 1 Results paragraph and supporting metrics.
 
 This script follows the data choices used in:
-  - HRSNM(v7 Fig1_4_test2).py
-  - hk_HRSNM_v7_5_test2.py
+  - figures/figure_1.py
+  - hrsnm/hong_kong.py
 
 Outputs:
   - Fig1_results_text.txt
@@ -27,29 +27,26 @@ import numpy as np
 import pandas as pd
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RESULTS_ROOT = REPO_ROOT.parent / f"{REPO_ROOT.name}_results"
 
 DEFAULT_RESULT_CSV = (
-    PROJECT_ROOT
-    / "processed_data"
+    DEFAULT_RESULTS_ROOT
     / "HK_v3"
     / "biochemical_results"
     / "hk_result_segments_v7.csv"
 )
 DEFAULT_SEWER_CSV = Path(os.environ.get(
     "HRSNM_FIG1_SEWER_CSV",
-    PROJECT_ROOT / "processed_data" / "fill_pipe_elevation" / "sewer_pipes_filled.csv",
+    REPO_ROOT / "data" / "figure1" / "sewer_pipes_filled.csv",
 ))
 DEFAULT_MEASUREMENT_CANDIDATES = [
     Path(os.environ["HRSNM_FIG1_MEASUREMENT_CSV"])
     if "HRSNM_FIG1_MEASUREMENT_CSV" in os.environ else None,
-    SCRIPT_DIR / "measurement_TDS_update6.csv",
-    SCRIPT_DIR / "measurement_TDS_updata6.csv",
-    PROJECT_ROOT / "processed_data" / "measurement_TDS_update6.csv",
-    PROJECT_ROOT / "processed_data" / "measurement_TDS_updata6.csv",
+    REPO_ROOT / "data" / "figure1" / "measurement_TDS_update6.csv",
+    REPO_ROOT / "data" / "figure1" / "measurement_TDS_updata6.csv",
 ]
-DEFAULT_OUT_DIR = SCRIPT_DIR / "fig1_results_export"
+DEFAULT_OUT_DIR = DEFAULT_RESULTS_ROOT / "figure1" / "results_export"
 
 
 def parse_args() -> argparse.Namespace:

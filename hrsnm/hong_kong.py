@@ -45,15 +45,15 @@ import pandas as pd
 import networkx as nx
 from tqdm import tqdm
 
-from hrsnm_dissolved_oxygen import saturation_do_mg_l
-from hrsnm_node_mixing import (
+from hrsnm.dissolved_oxygen import saturation_do_mg_l
+from hrsnm.node_mixing import (
     apply_do_overrides,
     build_node_dwf,
     concentration_node_order,
     mix_node_concentration,
     node_flow_balance_summary,
 )
-from hrsnm_scenarios import scenario_axes
+from hrsnm.scenarios import scenario_axes
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -67,7 +67,7 @@ RUN_SCENARIO_ANALYSIS = False
 # ═══════════════════════════════════════════════════════════════════════════════
 # 路径
 # ═══════════════════════════════════════════════════════════════════════════════
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data", "processed_data", "hk_v3")
 HYD_DIR = os.path.join(DATA_DIR, "hydraulic_results")
 DEFAULT_OUT_DIR = os.path.join(

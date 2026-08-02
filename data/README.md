@@ -41,6 +41,6 @@ data/
         └── ne_10m_admin_0_countries.shp (+ companion shapefile files)
 ```
 
-Run `python validate_server_package.py --check-data` after staging the inputs.
+Run `python -m scripts.validate_repository --check-data` after staging the inputs.
 Do not commit these files unless their licences and data-governance conditions
 explicitly permit redistribution.

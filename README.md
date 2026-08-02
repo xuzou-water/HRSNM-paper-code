@@ -1,17 +1,49 @@
-# HRSNM paper code
+# HRSNM sewer-sulphide modelling code
 
-This repository contains the modelling, analysis and plotting code used for the
-HRSNM sewer-sulphide study. It covers the three city models (Hong Kong,
-Toronto and Los Angeles), the 27-scenario workflow, main Figures 1–5 and
-Supplementary Figure 4.
+Reproducible modelling and figure-generation code for the HRSNM sewer-sulphide
+study in Hong Kong, Toronto and Los Angeles. The repository covers the city
+models, a 27-scenario environmental grid, main Figures 1–5 and Supplementary
+Figure S4.
 
-The repository is code-only. Large, licensed or location-sensitive input data,
-simulation outputs, caches and manuscript files are intentionally excluded.
-See [`data/README.md`](data/README.md) for the expected input layout.
+This is a code-only release. Input datasets, simulation outputs, caches,
+figures and manuscript files are excluded. See
+[`data/README.md`](data/README.md) for the required data layout.
 
-## Analysis workflow
+For Chinese documentation, see [`README_CN.md`](README_CN.md).
 
-The full analysis comprises 81 city-scenario simulations:
+## Repository structure
+
+```text
+hrsnm/      shared model components and the three city models
+figures/    scripts for Figures 1–5 and Supplementary Figure S4
+scripts/    workflow runners, text exporters and validation utilities
+tests/      automated model and input checks
+data/       instructions for staging external input data
+```
+
+Public filenames describe their purpose and do not contain development version
+numbers. The numerical methods and calibrated model settings remain in the
+corresponding modules.
+
+## Installation
+
+```bash
+conda env create -f environment.yml
+conda activate sewer
+```
+
+The workflow is CPU- and memory-based; a GPU is not required.
+
+## Reproduce Figures 1–5
+
+After placing authorised input files under `data/`, run:
+
+```bash
+python -m scripts.validate_repository --check-data
+./scripts/run_all.sh
+```
+
+The full workflow evaluates 81 city-scenario combinations:
 
 ```text
 3 cities × 27 scenarios
@@ -20,78 +52,55 @@ Sulphate:     5, 15 and 25 mg L−1
 COD:          250, 525 and 800 mg L−1
 ```
 
-The principal entry point runs model validation, three baseline simulations,
-the scenario grid and Figures 1–5:
-
-```bash
-conda env create -f environment.yml
-conda activate sewer
-chmod +x run_full27_figures_12345.sh
-python validate_server_package.py --require-clean
-./run_full27_figures_12345.sh
-```
-
-Generated outputs are written by default to a sibling directory named
-`server_full27_package_5_results`. Override this location and worker counts as
-needed:
+Outputs are written by default to a sibling directory named
+`<repository>_results`. Resource use and output location can be adjusted:
 
 ```bash
 RESULTS_ROOT=/path/to/results \
 SCENARIO_WORKERS=12 \
 FIG4_WORKERS=12 \
 THREADS_PER_WORKER=1 \
-./run_full27_figures_12345.sh
+./scripts/run_all.sh
 ```
 
-The workflow is CPU- and memory-based and does not require a GPU.
+Individual modules can also be run from the repository root, for example:
 
-## Code map
+```bash
+python -m hrsnm.hong_kong --help
+python -m figures.figure_3 --help
+python -m scripts.export_figure_1_results --help
+```
 
-| Component | Files |
-| --- | --- |
-| City models | `hk_HRSNM_v7_5_test2.py`, `toronto_HRSNM_v7_5_test1.py`, `la_HRSNM_v7_5_test1.py` |
-| Shared model logic | `hrsnm_dissolved_oxygen.py`, `hrsnm_node_mixing.py`, `hrsnm_scenarios.py`, `corrosion_criterion.py` |
-| Main figures | `HRSNM(v7 Fig1_4_test2).py`, `HRSNM(v Fig2_9).py`, `HRSNM(v7 Figure3).py`, `HRSNM(v7 Fig4_2).py`, `HRSNM(v7 Fig5_3).py` |
-| Supplementary figure | `plot_figure_s4_50year_failure.py` |
-| Orchestration | `run_full27_figures_12345.sh`, `run_parallel_scenarios.py`, `run_single_scenario.py` |
-| QA and tests | `validate_server_package.py`, `verify_figure_outputs.py`, `test_*.py` |
-| Results-text helpers | `export_fig1_results_text.py`, `export_fig2_results_text.py` |
+## Figure 4 and Figure 5 units
 
-## Unit convention for the conveyance burden index
+- Building-to-outfall distance, `Lb`: m
+- Building wastewater flow, `Qb`: m³ d−1
+- Conveyance burden, `Σ(Lb/Qb)`: m d m−3 (equivalent to d m−2)
 
-The current Figure 4 and Figure 5 implementation uses:
-
-- building-to-outfall distance, `Lb`: m;
-- building wastewater flow, `Qb`: m³ d−1;
-- `Σ(Lb/Qb)`: m d m−3 (equivalent to d m−2).
-
-Figure 4 can migrate legacy caches explicitly labelled `m3/year` to daily
-units. Figure 5 rejects a stale regression CSV unless its `x_unit` is
+Figure 4 converts a legacy cache only when its metadata explicitly identifies
+annual flow units. Figure 5 rejects regression files whose `x_unit` is not
 `m day m-3`.
 
-## Tests
+## Validation and tests
 
-Code-only checks do not require the external dataset:
-
-```bash
-python -m unittest -q \
-  test_hrsnm_dissolved_oxygen.py \
-  test_hrsnm_node_mixing.py \
-  test_hrsnm_scenarios.py \
-  test_corrosion_criterion.py
-
-python validate_server_package.py --require-clean
-```
-
-After the data have been staged, validate the complete input layout with:
+Code-only checks do not require the external datasets:
 
 ```bash
-python validate_server_package.py --check-data
+python -m unittest discover -s tests -v
+python -m scripts.validate_repository --require-clean
 ```
 
-## Data and licensing
+After staging the data, additionally run:
 
-No licence is asserted in this code release yet. Add an appropriate `LICENSE`
-file before making the repository public. Third-party datasets remain subject
-to their original licences and should not be redistributed through this
-repository without permission.
+```bash
+python -m scripts.validate_repository --check-data
+```
+
+## Data and licence
+
+Third-party datasets remain subject to their original licences and data-
+governance requirements. Do not commit them unless redistribution is explicitly
+permitted.
+
+No open-source licence is asserted yet. Add a suitable `LICENSE` file before
+making the repository public.
