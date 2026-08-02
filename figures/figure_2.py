@@ -80,7 +80,7 @@ BORDER_BG_ALPHA = 0.55
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION — PACKAGE-LOCAL FILE PATHS
 # ═══════════════════════════════════════════════════════════════════════════════
-SCRIPT_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parents[1]
 FIG2_INPUT_DIR = SCRIPT_DIR / "data" / "figure2"
 
 OUTPUT_DIR = str(SCRIPT_DIR / "figure_2_1")

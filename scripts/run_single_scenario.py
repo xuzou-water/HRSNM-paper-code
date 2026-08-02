@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from hrsnm_scenarios import scenario_axes
+from hrsnm.scenarios import scenario_axes
 
 
 TAG_RE = re.compile(r"^T_(\d+)_SO4_(\d+)_COD_(\d+)$")
@@ -31,15 +31,15 @@ def parse_tag(tag: str, scenario_grid: str = "full27") -> tuple[int, int, int]:
 
 def prepare_city(city: str, out_dir: Path):
     if city == "hk":
-        module = importlib.import_module("hk_HRSNM_v7_5_test2")
+        module = importlib.import_module("hrsnm.hong_kong")
         raw, nodes = module.load_segments_from_code2()
         pipes = module.attach_node_is_original(module.compute_geometry(raw), nodes)
     elif city == "toronto":
-        module = importlib.import_module("toronto_HRSNM_v7_5_test1")
+        module = importlib.import_module("hrsnm.toronto")
         raw, nodes = module.load_segments()
         pipes = module.compute_geometry(raw)
     elif city == "la":
-        module = importlib.import_module("la_HRSNM_v7_5_test1")
+        module = importlib.import_module("hrsnm.los_angeles")
         raw, nodes = module.load_segments()
         pipes = module.attach_original_flags(module.compute_geometry(raw), nodes)
     else:

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from hrsnm_scenarios import scenario_axes
+from hrsnm.scenarios import scenario_axes
 
 
 CITY_SPECS = {
@@ -55,7 +55,7 @@ def run_job(
     command = [
         sys.executable,
         "-u",
-        str(root / "run_single_scenario.py"),
+        "-m", "scripts.run_single_scenario",
         "--city", city,
         "--tag", tag,
         "--out-dir", str(out_dir),
@@ -82,7 +82,7 @@ def run_job(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--results-root", type=Path, required=True)
     parser.add_argument("--workers", type=int, default=81)
     parser.add_argument(

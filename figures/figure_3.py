@@ -39,7 +39,7 @@ warnings.filterwarnings("ignore")
 # ════════════════════════════════════════════════════════════════════
 # CONFIG
 # ════════════════════════════════════════════════════════════════════
-SCRIPT_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parents[1]
 RESULTS_ROOT = SCRIPT_DIR / "node_dwf_fix_results"
 OUT_DIR = str(RESULTS_ROOT / "figure3")
 DPI = 600

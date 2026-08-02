@@ -2,7 +2,7 @@
 """
 Export a Nature-style Results subsection for Figure 2.
 
-Inputs are the data tables exported by HRSNM(v Fig2_9).py:
+Inputs are the data tables exported by figures/figure_2.py:
   - <results-root>/figure2/figure2_data/wwtp_comparison.csv
   - <results-root>/figure2/figure2_data/segment_counts.csv
   - <results-root>/figure2/figure2_data/sci_whisker_ranges.csv
@@ -31,8 +31,8 @@ import numpy as np
 import pandas as pd
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_RESULTS_ROOT = SCRIPT_DIR.parent / f"{SCRIPT_DIR.name}_results"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RESULTS_ROOT = REPO_ROOT.parent / f"{REPO_ROOT.name}_results"
 DEFAULT_DATA_DIR = DEFAULT_RESULTS_ROOT / "figure2" / "figure2_data"
 DEFAULT_OUT_DIR = DEFAULT_RESULTS_ROOT / "figure2" / "results_export"
 

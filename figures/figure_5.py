@@ -63,6 +63,7 @@ mpl.rcParams.update({
 # ============================================================
 # Configuration
 # ============================================================
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TAG = "T_20_SO4_15_COD_525"
 CORROSION_RATE_THRESHOLD_MM_PER_YEAR = 1.0
 MIN_SERVICE_POPULATION_RATIO = 0.1
@@ -72,7 +73,7 @@ MIN_SUBREGION_CATCHMENTS = 200
 input_code2_csv = os.environ.get(
     "HRSNM_FIG5_GLOBAL_CSV",
     os.path.abspath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        REPO_ROOT,
         "data",
         "global",
         "catchment_summary.csv",
@@ -82,7 +83,7 @@ input_code2_csv = os.environ.get(
 input_reg_csv = os.environ.get(
     "HRSNM_FIG5_REGRESSION_CSV",
     os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        REPO_ROOT,
         "fig4_results_export",
         f"regressed_equations_{TAG}.csv",
     ),
@@ -91,7 +92,7 @@ input_reg_csv = os.environ.get(
 COUNTRIES_SHP = os.environ.get(
     "HRSNM_FIG5_COUNTRIES_SHP",
     os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "data", "global",
+        REPO_ROOT, "data", "global",
         "ne_10m_admin_0_countries", "ne_10m_admin_0_countries.shp",
     ),
 )
@@ -99,7 +100,7 @@ COUNTRIES_SHP = os.environ.get(
 output_dir = os.path.abspath(os.environ.get(
     "HRSNM_FIG5_OUT_DIR",
     os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        REPO_ROOT,
         "fig5_results_export",
     ),
 ))

@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from corrosion_criterion import (
+from hrsnm.corrosion import (
     corrosion_exceeds_assumed_wall,
     corrosion_exceedance_length_km,
     corrosion_rate_exceeds_threshold,
