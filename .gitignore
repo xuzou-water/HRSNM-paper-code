@@ -1,0 +1,33 @@
+# External input data and generated outputs
+data/*
+!data/README.md
+*_results/
+*_results_export/
+node_dwf_fix_results/
+fig4_results_export/
+fig5_results_export/
+
+# Python and test artefacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Local environments and editor files
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+.DS_Store
+.Rhistory
+*.log
+*.pid
+
+# Manuscripts and generated figures
+*.docx
+*.pdf
+*.png
+*.svg
+*.tif
+*.tiff
