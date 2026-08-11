@@ -102,5 +102,3 @@ Third-party datasets remain subject to their original licences and data-
 governance requirements. Do not commit them unless redistribution is explicitly
 permitted.
 
-No open-source licence is asserted yet. Add a suitable `LICENSE` file before
-making the repository public.
