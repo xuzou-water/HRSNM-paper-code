@@ -1,13 +1,14 @@
 # HRSNM sewer-sulphide modelling code
 
-Reproducible modelling and figure-generation code for the HRSNM sewer-sulphide
-study in Hong Kong, Toronto and Los Angeles. The repository covers the city
-models, a 27-scenario environmental grid, main Figures 1–5 and Supplementary
-Figure S4.
+Reproducible modelling, input data and figure-generation code for the HRSNM
+sewer-sulphide study in Hong Kong, Toronto and Los Angeles. The repository
+covers the city models, a 27-scenario environmental grid, main Figures 1–5 and
+Supplementary Figure S4.
 
-This is a code-only release. Input datasets, simulation outputs, caches,
-figures and manuscript files are excluded. See
-[`data/README.md`](data/README.md) for the required data layout.
+The input datasets required by the workflow are included under `data/`.
+Simulation outputs, caches, generated figures and manuscript files remain
+excluded. See [`data/README.md`](data/README.md) for the data inventory and
+integrity-check instructions.
 
 For Chinese documentation, see [`README_CN.md`](README_CN.md).
 
@@ -18,7 +19,7 @@ hrsnm/      shared model components and the three city models
 figures/    scripts for Figures 1–5 and Supplementary Figure S4
 scripts/    workflow runners, text exporters and validation utilities
 tests/      automated model and input checks
-data/       instructions for staging external input data
+data/       versioned input datasets and their integrity manifest
 ```
 
 Public filenames describe their purpose and do not contain development version
@@ -32,11 +33,14 @@ conda env create -f environment.yml
 conda activate sewer
 ```
 
+Several large inputs are stored with Git LFS. Install Git LFS before cloning,
+or run `git lfs pull` in an existing clone to download them.
+
 The workflow is CPU- and memory-based; a GPU is not required.
 
 ## Reproduce Figures 1–5
 
-After placing authorised input files under `data/`, run:
+After cloning the repository and downloading the LFS objects, run:
 
 ```bash
 python -m scripts.validate_repository --check-data
@@ -83,14 +87,14 @@ annual flow units. Figure 5 rejects regression files whose `x_unit` is not
 
 ## Validation and tests
 
-Code-only checks do not require the external datasets:
+Code checks can be run independently of the datasets:
 
 ```bash
 python -m unittest discover -s tests -v
 python -m scripts.validate_repository --require-clean
 ```
 
-After staging the data, additionally run:
+Validate the included data and their expected model structure with:
 
 ```bash
 python -m scripts.validate_repository --check-data
@@ -99,6 +103,7 @@ python -m scripts.validate_repository --check-data
 ## Data and licence
 
 Third-party datasets remain subject to their original licences and data-
-governance requirements. Do not commit them unless redistribution is explicitly
-permitted.
+governance requirements. The data are included to support reproduction of the
+reported analysis; users remain responsible for complying with the applicable
+source terms.
 

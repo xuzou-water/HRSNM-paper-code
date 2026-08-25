@@ -1,11 +1,9 @@
-# External input data and generated outputs
-data/*
-!data/README.md
-*_results/
-*_results_export/
-node_dwf_fix_results/
-fig4_results_export/
-fig5_results_export/
+# Generated outputs
+/*_results/
+/*_results_export/
+/node_dwf_fix_results/
+/fig4_results_export/
+/fig5_results_export/
 
 # Python and test artefacts
 __pycache__/

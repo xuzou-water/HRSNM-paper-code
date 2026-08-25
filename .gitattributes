@@ -3,3 +3,14 @@
 *.sh text eol=lf
 *.md text eol=lf
 *.yml text eol=lf
+
+data/processed_data/la_v3/hydraulic_results/segment_hydraulics.csv filter=lfs diff=lfs merge=lfs -text
+data/processed_data/toronto_v3/hydraulic_results/segment_hydraulics.csv filter=lfs diff=lfs merge=lfs -text
+data/processed_data/la_v3/hydraulic_results/la_building_details.csv filter=lfs diff=lfs merge=lfs -text
+data/processed_data/la_v3/hydraulic_results/nodes_all.csv filter=lfs diff=lfs merge=lfs -text
+data/processed_data/toronto_v3/hydraulic_results/toronto_building_details.csv filter=lfs diff=lfs merge=lfs -text
+data/figure1/HK_buildings.dbf filter=lfs diff=lfs merge=lfs -text
+data/processed_data/hk_v3/hydraulic_results/segment_hydraulics.csv filter=lfs diff=lfs merge=lfs -text
+data/processed_data/toronto_v3/hydraulic_results/nodes_all.csv filter=lfs diff=lfs merge=lfs -text
+data/processed_data/hk_v3/hydraulic_results/hk_building_details.csv filter=lfs diff=lfs merge=lfs -text
+data/figure1/HK_buildings.shp filter=lfs diff=lfs merge=lfs -text

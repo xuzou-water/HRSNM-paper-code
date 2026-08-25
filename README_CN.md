@@ -1,10 +1,11 @@
-# HRSNM 污水管网硫化物模型与绘图代码
+# HRSNM 污水管网硫化物模型、数据与绘图代码
 
-本仓库收录 HRSNM 污水管网硫化物研究的可复现代码，涵盖香港、多伦多和洛杉矶
-三座城市的模型、27 个环境情景、主文 Figure 1–5，以及补充 Figure S4。
+本仓库收录 HRSNM 污水管网硫化物研究的可复现代码和输入数据，涵盖香港、多伦多
+和洛杉矶三座城市的模型、27 个环境情景、主文 Figure 1–5，以及补充
+Figure S4。
 
-仓库仅发布代码，不包含输入数据、模拟结果、缓存、图片或稿件。外部数据的目录
-要求见 [`data/README.md`](data/README.md)。英文说明见
+工作流所需的输入数据已收录在 `data/` 目录；模拟结果、缓存、生成图片和稿件仍不包含在
+仓库内。数据清单和完整性检查方法见 [`data/README.md`](data/README.md)。英文说明见
 [`README.md`](README.md)。
 
 ## 仓库结构
@@ -14,7 +15,7 @@ hrsnm/      公共模型模块及三座城市模型
 figures/    Figure 1–5 和补充 Figure S4 的绘图脚本
 scripts/    批量运行、结果文本导出及仓库检查工具
 tests/      模型与输入数据的自动化测试
-data/       外部输入数据的放置说明
+data/       版本化的输入数据及完整性校验清单
 ```
 
 公开文件名已按功能统一，不再保留开发阶段的版本号和 `test` 后缀；模型计算方法
@@ -27,11 +28,14 @@ conda env create -f environment.yml
 conda activate sewer
 ```
 
+部分大文件使用 Git LFS 存储。请在克隆前安装 Git LFS；已有克隆可在仓库目录运行
+`git lfs pull` 下载大文件。
+
 工作流使用 CPU 和内存，不需要 GPU。
 
 ## 复现 Figure 1–5
 
-按说明将获准使用的数据放入 `data/` 后运行：
+克隆仓库并下载 LFS 对象后运行：
 
 ```bash
 python -m scripts.validate_repository --check-data
@@ -76,14 +80,14 @@ Figure 4 只在旧缓存元数据明确标注年流量单位时进行换算；Fi
 
 ## 检查与测试
 
-不放置外部数据也可以运行代码检查：
+代码检查可以独立于数据运行：
 
 ```bash
 python -m unittest discover -s tests -v
 python -m scripts.validate_repository --require-clean
 ```
 
-放置完整数据后，再运行：
+使用下列命令验证已包含的数据及其模型结构：
 
 ```bash
 python -m scripts.validate_repository --check-data
@@ -91,5 +95,5 @@ python -m scripts.validate_repository --check-data
 
 ## 数据与许可
 
-第三方数据仍受原许可和数据治理要求约束；除非明确允许再分发，否则不要提交到
-本仓库。目前代码尚未指定开源许可证，在公开仓库前应补充合适的 `LICENSE`。
+第三方数据仍受原许可和数据治理要求约束。仓库中的数据用于复现论文报告的分析；使用者仍需
+遵守各数据源的适用条款。目前代码尚未指定开源许可证，在公开仓库前应补充合适的 `LICENSE`。
