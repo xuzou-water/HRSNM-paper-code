@@ -1,37 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun 17 12:39:51 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jun  8 17:01:12 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jun  6 18:18:48 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-HK Sewer Network Water Quality Simulation & H2S Emission Analysis
-================================================================
-直接读取代码2的 segment 级输出,不切分、不聚合。
-所有结果直接以 segment 为单位输出。
-拓扑(有向图 + 逐层推进)保留——它是浓度沿管网路由的核心。
-
-★ 本版改动:
-  计算 H2S 溢出 distance 时,只有当
-      us_is_original  或  ds_is_original  或  (节点)is_original
-  为真的 segment 才计算 distance,其余 distance = NaN。
-"""
 
 import argparse
 import os
@@ -59,13 +25,13 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 开关
+# Switch
 # ═══════════════════════════════════════════════════════════════════════════════
 RUN_SCENARIO_ANALYSIS = False
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 路径
+# Path
 # ═══════════════════════════════════════════════════════════════════════════════
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data", "processed_data", "hk_v3")
@@ -75,7 +41,6 @@ DEFAULT_OUT_DIR = os.path.join(
 )
 OUT_DIR = DEFAULT_OUT_DIR
 
-# 只需要 segment 水力 + 节点 (不再需要 mapping)
 SEG_HYD_CSV = os.environ.get(
     "HRSNM_HK_SEGMENTS_CSV", os.path.join(HYD_DIR, "segment_hydraulics.csv")
 )
@@ -85,7 +50,7 @@ NODES_ALL_CSV = os.environ.get(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 全局常量 (生化 / 气相 / 腐蚀)
+# Constant
 # ═══════════════════════════════════════════════════════════════════════════════
 ALPHA, BETA = 1, 1
 K_1_2 = 6
@@ -169,7 +134,6 @@ RHO_GAS = 1.2
 
 EPS = 1e-10
 
-# ★ 指定 start 节点的 SO_in 强制覆盖值 (HK)
 SO_IN_OVERRIDE_HK = {
     'FGJ7008180': 4.56,
     'XPS4001320': 4.28,
@@ -182,14 +146,10 @@ SO_IN_OVERRIDE_HK = {
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 通用工具
+# Tools
 # ═══════════════════════════════════════════════════════════════════════════════
 def _to_bool(series):
-    """
-    把各种形式的布尔/字符串列统一转换为 numpy bool。
-    支持: True/False(已为 bool)、"TRUE"/"FALSE"、"1"/"0"、"T"/"F"、"YES"/"NO"。
-    无法识别的一律视为 False。
-    """
+
     if series.dtype == bool:
         return series.astype(bool)
     s = series.astype(str).str.strip().str.upper()
@@ -197,7 +157,7 @@ def _to_bool(series):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 1 — 读取代码2的 segment / node  (不再读 mapping, 不再聚合)
+# Part 1 
 # ═══════════════════════════════════════════════════════════════════════════════
 def _safe_read_csv(path, name):
     if not os.path.exists(path):
@@ -206,14 +166,7 @@ def _safe_read_csv(path, name):
 
 
 def load_segments_from_code2():
-    """
-    直接读取代码2输出的:
-      - segment_hydraulics.csv  每根 segment 的水力 + 几何 + 端点节点
-      - nodes_all.csv           所有节点坐标 / invert / type / is_original
-    返回:
-      seg      : segment 级 DataFrame (即模拟单元)
-      nodes_df : 全节点 DataFrame
-    """
+
     print("  Reading segment_hydraulics.csv ...")
     seg = _safe_read_csv(SEG_HYD_CSV, "segment_hydraulics.csv")
     print(f"    segments: {len(seg):,}")
@@ -222,15 +175,12 @@ def load_segments_from_code2():
     nodes_df = _safe_read_csv(NODES_ALL_CSV, "nodes_all.csv")
     nodes_df['node'] = nodes_df['node'].astype(str)
     print(f"    nodes  : {len(nodes_df):,}")
-
-    # 节点 is_original 布尔化
     if 'is_original' in nodes_df.columns:
         nodes_df['is_original'] = _to_bool(nodes_df['is_original'])
     else:
         print("  ⚠ nodes_all.csv 缺少 is_original 列, 全部按 False 处理。")
         nodes_df['is_original'] = False
 
-    # segment 端点 is_original 布尔化
     for c in ['us_is_original', 'ds_is_original']:
         if c in seg.columns:
             seg[c] = _to_bool(seg[c])
@@ -238,13 +188,11 @@ def load_segments_from_code2():
             print(f"  ⚠ segment_hydraulics.csv 缺少 {c} 列, 全部按 False 处理。")
             seg[c] = False
 
-    # 类型规范
     for c in ['link_name', 'parent_link', 'us_node', 'ds_node',
               'pipe_type', 'catchment', 'regime']:
         if c in seg.columns:
             seg[c] = seg[c].astype(str)
 
-    # 重命名 → name/start/end/v/depth/flowrate
     seg = seg.rename(columns={
         'link_name':  'name',
         'us_node':    'start',
@@ -271,11 +219,7 @@ def load_segments_from_code2():
 
 
 def attach_node_is_original(pipes, nodes_df):
-    """
-    把节点级 is_original 合并进 segment。
-    采用 segment 的起点 (start = us_node) 对应的节点 is_original。
-    生成列: node_is_original
-    """
+
     pipes = pipes.copy()
     if 'is_original' in nodes_df.columns:
         node_map = nodes_df.set_index('node')['is_original'].to_dict()
@@ -285,7 +229,7 @@ def attach_node_is_original(pipes, nodes_df):
     else:
         pipes['node_is_original'] = False
 
-    # 保险: 确保端点 original 列存在
+
     for c in ['us_is_original', 'ds_is_original']:
         if c not in pipes.columns:
             pipes[c] = False
@@ -296,7 +240,7 @@ def attach_node_is_original(pipes, nodes_df):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 2 — 几何 (A_V, HRT, Vg, Vw, Ag …)
+# Part 2 — (A_V, HRT, Vg, Vw, Ag …)
 # ═══════════════════════════════════════════════════════════════════════════════
 def compute_geometry(pipes):
     pipes = pipes.copy()
@@ -330,7 +274,7 @@ def compute_geometry(pipes):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 3 — 拓扑 (segment 级)  ★ 路由核心, 必须保留
+# Part 3
 # ═══════════════════════════════════════════════════════════════════════════════
 def build_topology(pipes_df, removed_edges_csv=None):
     G = nx.DiGraph()
@@ -414,7 +358,7 @@ def build_topology(pipes_df, removed_edges_csv=None):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 4 — 生化反应 (RK4)
+# Part 4 — Biochemical reaction (RK4)
 # ═══════════════════════════════════════════════════════════════════════════════
 def _derivatives(conc, A_V, vel, diam, slope, temp_c, is_force_main=None):
     aw_temp = AW ** (temp_c - 20)
@@ -443,7 +387,6 @@ def _derivatives(conc, A_V, vel, diam, slope, temp_c, is_force_main=None):
     rd     = DHANA * KO / (KO + SO + EPS) * XHw * a_temp
     ra     = ALPHA * K_L * (BETA * saturation_do - SO) * a_temp * 24
 
-    # ★ rising main (force main / 压力管) 不考虑复氧 ra = 0
     if is_force_main is not None:
         ra = np.where(is_force_main, 0.0, ra)
 
@@ -505,7 +448,7 @@ def compute_reactions_batch(conc, A_V, HRT, vel, diam, slope, temp_c, is_force_m
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 5 — 源浓度 & 主循环
+# Part 5
 # ═══════════════════════════════════════════════════════════════════════════════
 def generate_source_concentrations_hk(source_nodes,
                                       so4_mean=SO4_MEAN_HK,
@@ -551,7 +494,6 @@ def run_simulation_hk(pipes_df, topo, node_dwf, positive_dwf_nodes,
     sl  = pipes_df['slope'].values.astype(np.float64)
     dm  = pipes_df['diameter'].values.astype(np.float64)
 
-    # ★ 压力管(force_main)掩码：用 pipe_type 区分
     if 'pipe_type' in pipes_df.columns:
         is_fm = pipes_df['pipe_type'].astype(str).str.strip().str.lower().eq('force_main').values
     else:
@@ -573,7 +515,6 @@ def run_simulation_hk(pipes_df, topo, node_dwf, positive_dwf_nodes,
         if not nodes:
             continue
 
-        # ★ 强制覆盖指定节点的 SO_in (index 3 = 'SO')
         for nd in nodes:
             inc = np.asarray(node_in.get(nd, []), dtype=int)
             inc = inc[valid_pipe_mask[inc]] if len(inc) else inc
@@ -623,7 +564,7 @@ def run_simulation_hk(pipes_df, topo, node_dwf, positive_dwf_nodes,
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 6 — 后处理 & 保存 (★ 直接写 segment, 不聚合)
+# Part 6 
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def postprocess_and_save_hk(pipes_split, conc_in, conc_out, tag="", temp_c=TEMP):
@@ -651,7 +592,7 @@ def postprocess_and_save_hk(pipes_split, conc_in, conc_out, tag="", temp_c=TEMP)
     p['rs2b']     = KS2B * shs_p**N1 * so_p**N2 * 24
     p['rs2_ox_f'] = K_S_OX_F * shs_p**0.5 * so_p**0.5 * 24 * av
 
-    # ★ 新增：计算复氧速率 ra（与 _derivatives 中公式完全一致，使用 *_in 浓度）
+
     vel   = p['v'].values.astype(float)
     diam  = p['diameter'].values.astype(float)
     slope = p['slope'].values.astype(float)
@@ -662,18 +603,17 @@ def postprocess_and_save_hk(pipes_split, conc_in, conc_out, tag="", temp_c=TEMP)
     su  = np.maximum(np.maximum(slope, 0) * vel, EPS)
     K_L = 0.86 * (1 + 0.2 * Fr**2) * su**(3 / 8) * dm**(-1)
     p['ra'] = ALPHA * K_L * (BETA * saturation_do - SO_in) * a_temp * 24
-    # ★ force_main(压力管) 复氧 ra = 0
+
     if 'pipe_type' in p.columns:
         is_fm = p['pipe_type'].astype(str).str.strip().str.lower().eq('force_main').values
         p.loc[is_fm, 'ra'] = 0.0
-    # ★ 新增结束
 
     out_path = os.path.join(OUT_DIR, f"hk_result_segments_v7{suffix}.csv")
     p.to_csv(out_path, index=False, encoding='utf-8-sig')
     print(f"  Segment-level WQ results → {out_path}")
     return p
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 7 — H2S / CH4 气相、腐蚀、大气扩散  (segment 级)
+# Part 7 — H2S / CH4 
 # ═══════════════════════════════════════════════════════════════════════════════
 def calc_headspace_h2s_ppm_from_total_sulfide(
     shs_g_m3, Vw_m3, Vg_m3, pH=7.5, T_K=298.15,
@@ -705,7 +645,6 @@ def compute_h2s_emission_hk(pipes_split, tag="", temp_c=TEMP):
     suffix = f"_{tag}" if tag else ""
     fp = pipes_split.copy()
 
-    # ---- 取出 original 标记 (用于决定哪些 segment 计算 distance) ----
     if 'us_is_original' in fp.columns:
         us_orig = _to_bool(fp['us_is_original']).values
     else:
@@ -746,8 +685,6 @@ def compute_h2s_emission_hk(pipes_split, tag="", temp_c=TEMP):
         'node_is_original': nd_orig,
     })
 
-    # ★ 计算 distance 的对象掩码:
-    #   us_is_original 或 ds_is_original 或 (节点)is_original 为真才计算
     calc_mask = (us_orig | ds_orig | nd_orig)
     df['calc_distance'] = calc_mask
     print(f"  需计算 distance 的 segment 数: {calc_mask.sum():,} / {len(df):,}")
@@ -825,7 +762,6 @@ def compute_h2s_emission_hk(pipes_split, tag="", temp_c=TEMP):
         c_tgt = c_ppm * 1e-6 * (RHO_AIR * M_H2S / M_AIR)
         denom = math.pi * U_WIND * SIGMA_Y_A * SIGMA_Z_C * c_tgt
 
-        # ★ 只在 (排放率>0) 且 (us/ds/node 为 original) 时计算 distance
         valid = (df['H2S_emission_rate'].values > 0) & calc_mask
         df['distance'] = np.nan
         df.loc[valid, 'distance'] = (
@@ -844,7 +780,7 @@ def compute_h2s_emission_hk(pipes_split, tag="", temp_c=TEMP):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 8 — Scenario (segment 级)
+# Part 8 — Scenario 
 # ═══════════════════════════════════════════════════════════════════════════════
 def run_temp_so4_cod_scenarios_hk(
         pipes_split, topo, node_dwf, positive_dwf_nodes,
@@ -905,13 +841,11 @@ def run_temp_so4_cod_scenarios_hk(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Part 9 — 导出带管道信息的 Shapefile (segment 级)
+# Part 9 
 # ═══════════════════════════════════════════════════════════════════════════════
 def export_segments_to_shapefile(pipes_result, emission_df=None,
                                  tag="", crs="EPSG:2326"):
-    """
-    将 segment 级结果导出为 Shapefile。
-    """
+
     try:
         import geopandas as gpd
         from shapely.geometry import LineString
@@ -1016,7 +950,7 @@ def export_segments_to_shapefile(pipes_result, emission_df=None,
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 主流程
+# Main
 # ═══════════════════════════════════════════════════════════════════════════════
 def parse_args():
     parser = argparse.ArgumentParser(description="Run the Hong Kong HRSNM baseline.")
@@ -1138,197 +1072,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-# #%
-# # ═══════════════════════════════════════════════════════════════════════════════
-# # Part 10 — 绘制代码2的最后一个子图 (TDS 验证: Predicted vs Measured)
-# # ═══════════════════════════════════════════════════════════════════════════════
-# def plot_tds_validation():
-#     """
-#     复现代码2中的最后一个子图 (ax_tval):
-#     按 node (pipes 的 'start' 列) 查找预测 SHS_in,
-#     与 measurement_TDS_update5.csv 的测量 TDS 对比, 画分组柱状图。
-#     """
-#     import matplotlib.pyplot as plt
-#     import seaborn as sns
-#     from scipy import stats
 
-#     # ---------- 色系 ----------
-#     SPINE_C   = "#333333"
-#     TEXT_C    = "#222222"
-#     GRID_C    = "#D9D4CB"
-#     SAGE      = "#9DBEBA"   # prediction
-#     BEIGE     = "#9B8F7A"   # measurement
-#     COLOR_PRED, COLOR_MEAS = SAGE, BEIGE
-#     BG_FIG    = "white"
-#     BG_AX     = "white"
-
-#     try:
-#         plt.rcParams["font.family"] = "Arial"
-#     except Exception:
-#         plt.rcParams["font.family"] = "sans-serif"
-#     plt.rcParams.update({
-#         "axes.unicode_minus": False,
-#         "axes.edgecolor":  SPINE_C,
-#         "axes.labelcolor": TEXT_C,
-#         "xtick.color":     TEXT_C,
-#         "ytick.color":     TEXT_C,
-#         "text.color":      TEXT_C,
-#         "axes.linewidth":  0.7,
-#         "xtick.direction": "in",
-#         "ytick.direction": "in",
-#     })
-
-#     # ---------- 路径 ----------
-#     result_path   = os.path.join(OUT_DIR, "hk_result_segments_v7.csv")
-#     tds_meas_path = os.path.join(
-#         SCRIPT_DIR, "data", "figure1", "measurement_TDS_update5.csv"
-#     )
-
-#     if not os.path.exists(result_path):
-#         print(f"  ⚠ 找不到结果文件: {result_path}")
-#         return
-#     if not os.path.exists(tds_meas_path):
-#         print(f"  ⚠ 找不到测量文件: {tds_meas_path}")
-#         return
-
-#     # ---------- 读取预测结果 ----------
-#     pipes = pd.read_csv(result_path)
-#     pipes['_start_str_lookup'] = pipes['start'].astype(str).str.strip()
-
-#     # ---------- 测量数据读取 ----------
-#     def calc_95ci_half_width(series):
-#         s = series.dropna()
-#         n = len(s)
-#         if n < 2:
-#             return 0.0
-#         return stats.t.ppf(0.975, df=n - 1) * s.sem()
-
-#     mp_labels = ['MP1', 'MP2', 'MP3', 'MP4', 'MP5', 'MP6', 'MP7', 'MP8']
-
-#     meas_raw  = pd.read_csv(tds_meas_path, sep=None, engine='python', header=0)
-#     node_row  = meas_raw.iloc[0]
-#     meas_data = meas_raw.iloc[1:].reset_index(drop=True)
-
-#     cols      = meas_raw.columns.tolist()
-#     tds_cols  = cols[1:9]     # 第2~9列 -> TDS (8 列)
-
-#     assert len(tds_cols) == len(mp_labels), \
-#         f"TDS 列数 ({len(tds_cols)}) 与 MP 数 ({len(mp_labels)}) 不匹配"
-
-#     for c in tds_cols:
-#         meas_data[c] = pd.to_numeric(meas_data[c], errors='coerce')
-
-#     # MP -> node 名称映射
-#     node_names = [str(node_row[c]).strip() for c in tds_cols]
-#     mp_to_node = dict(zip(mp_labels, node_names))
-#     print('\n  MP -> node 映射:')
-#     for mp in mp_labels:
-#         print(f'    {mp}: {mp_to_node[mp]}')
-
-#     # 测量统计
-#     tds_means  = {mp: meas_data[c].dropna().mean()       for mp, c in zip(mp_labels, tds_cols)}
-#     tds_errors = {mp: calc_95ci_half_width(meas_data[c]) for mp, c in zip(mp_labels, tds_cols)}
-
-#     # ---------- 用 node 查找预测 SHS_in ----------
-#     pred_tds = {}
-#     for mp in mp_labels:
-#         node  = mp_to_node[mp]
-#         match = pipes[pipes['_start_str_lookup'] == node]
-#         if len(match) > 0:
-#             pred_tds[mp] = match.iloc[0]['SHS_in']
-#         else:
-#             pred_tds[mp] = np.nan
-#             print(f'  ⚠ 未在 pipes.start 中找到 node {node} (对应 {mp})')
-
-#     display_order = mp_labels
-
-#     # ---------- 绘图用 DataFrame ----------
-#     filtered_df = pd.DataFrame({
-#         'display_name':             mp_labels,
-#         'SHS_in':                   [pred_tds[mp]   for mp in mp_labels],
-#         'SHS_in_measurement_mean':  [tds_means[mp]  for mp in mp_labels],
-#         'SHS_in_measurement_error': [tds_errors[mp] for mp in mp_labels],
-#     })
-
-#     plot_df_tds = filtered_df.melt(
-#         id_vars='display_name',
-#         value_vars=['SHS_in', 'SHS_in_measurement_mean'],
-#         var_name='concentration_type',
-#         value_name='concentration'
-#     )
-
-#     # ---------- 画图 ----------
-#     SPINE_WIDTH_RIGHT = 0.7
-#     ERR_LINE_WIDTH    = 0.7
-#     fs_label, fs_tick = 11, 9
-
-#     fig, ax_tval = plt.subplots(figsize=(14 / 2, 5 / 2), dpi=300)
-#     fig.patch.set_facecolor(BG_FIG)
-
-#     ax_tval.set_facecolor(BG_AX)
-#     ax_tval.spines['top'].set_visible(False)
-#     ax_tval.spines['right'].set_visible(False)
-#     ax_tval.spines['left'].set_linewidth(SPINE_WIDTH_RIGHT)
-#     ax_tval.spines['bottom'].set_linewidth(SPINE_WIDTH_RIGHT)
-#     ax_tval.spines['left'].set_edgecolor(SPINE_C)
-#     ax_tval.spines['bottom'].set_edgecolor(SPINE_C)
-#     ax_tval.tick_params(direction='in', width=SPINE_WIDTH_RIGHT, colors=TEXT_C)
-#     ax_tval.grid(True, axis='y', linestyle=':', linewidth=0.5, color=GRID_C, alpha=0.45)
-#     ax_tval.set_axisbelow(True)
-
-#     palette_tds = {'SHS_in': COLOR_PRED, 'SHS_in_measurement_mean': COLOR_MEAS}
-#     sns.barplot(
-#         data=plot_df_tds, x='display_name', y='concentration',
-#         hue='concentration_type',
-#         hue_order=['SHS_in', 'SHS_in_measurement_mean'],
-#         palette=palette_tds, order=display_order,
-#         linewidth=0, edgecolor='none',
-#         ax=ax_tval, errorbar=None
-#     )
-
-#     # 误差棒 (只加在测量柱上)
-#     patches_g = ax_tval.patches
-#     n_g_g = len(display_order)
-#     for i, dname in enumerate(display_order):
-#         bar = patches_g[n_g_g + i]
-#         bx = bar.get_x() + bar.get_width() / 2
-#         by = bar.get_height()
-#         err_val = filtered_df.loc[
-#             filtered_df['display_name'] == dname, 'SHS_in_measurement_error'
-#         ].values[0]
-#         if pd.isna(err_val):
-#             err_val = 0.0
-#         ax_tval.errorbar(bx, by, yerr=err_val, fmt='none', ecolor=SPINE_C,
-#                          capsize=2.0, capthick=ERR_LINE_WIDTH, linewidth=ERR_LINE_WIDTH)
-
-#     handles_g, labels_g = ax_tval.get_legend_handles_labels()
-#     labels_g = ['Predicted TDS' if l == 'SHS_in'
-#                 else 'Measured TDS' if l == 'SHS_in_measurement_mean'
-#                 else l for l in labels_g]
-#     leg_t = ax_tval.legend(
-#         handles=handles_g, labels=labels_g,
-#         fontsize=fs_tick, loc='upper right', frameon=False
-#     )
-#     for t in leg_t.get_texts():
-#         t.set_color(TEXT_C)
-
-#     ax_tval.set_xlabel('Measurement Points', fontsize=fs_label, color=TEXT_C)
-#     ax_tval.set_ylabel('TDS [gS/m³]', fontsize=fs_label, color=TEXT_C)
-#     ax_tval.tick_params(labelsize=fs_tick, width=SPINE_WIDTH_RIGHT, colors=TEXT_C)
-
-#     plt.tight_layout()
-
-#     out_png = os.path.join(OUT_DIR, "Fig_TDS_validation.png")
-#     plt.savefig(out_png, dpi=600, bbox_inches='tight',
-#                 facecolor=BG_FIG, transparent=False)
-#     print(f"\n  TDS 验证图 → {out_png}")
-#     plt.show()
-
-
-# if __name__ == "__main__":
-#     main()
-#     # ---- 画代码2的最后一个子图 (TDS 验证) ----
-#     print("\n" + "=" * 70)
-#     print("Step 6: 绘制 TDS 验证图 (代码2最后一个子图)")
-#     print("=" * 70)
-#     plot_tds_validation()
