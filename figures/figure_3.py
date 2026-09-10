@@ -1,26 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun 17 18:24:22 2026
 
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun 17 15:37:00 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jun 17 15:19:36 2026
-
-@author: zouxu
-
-Figure 3 (final; single figure, 4 columns x 3 rows; panels a-l).
-All diameter-resolved panels show gravity sewers only.
-"""
 
 import argparse
 import os
