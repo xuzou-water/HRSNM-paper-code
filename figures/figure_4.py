@@ -1,24 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Jun  7 13:54:18 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jun  4 21:12:29 2026
-
-@author: zouxu
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Figure 4 — Nature-style mechanistic summary
-Refactored to consume Code-1 outputs (v7) for HK / Toronto / LA.
-Outfalls are identified from hydraulic_nodes.csv (type=='outfall'),
-so the .inp file is NOT needed anymore.
-"""
 
 import os
 import time
