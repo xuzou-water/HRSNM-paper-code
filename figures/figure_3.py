@@ -665,159 +665,7 @@ def plot_importance_panel(ax, importance, per_city, outcome, feature_labels, tit
                       edgecolor="#B8B1A6", linewidth=0.45, alpha=0.95))
 
 
-# ════════════════════════════════════════════════════════════════════
-# RESULTS-TEXT STATISTICS
-# ════════════════════════════════════════════════════════════════════
-def build_results_text(data, importance):
-    """Compute the manuscript-ready Results subsection from robust summaries."""
 
-    def fv(x, d=2):
-        return f"{x:.{d}f}" if (x is not None and np.isfinite(x)) else "NA"
-
-    def imp(outcome, feature):
-        return importance.get(outcome, {}).get(feature, np.nan)
-
-    def target_median(city, col, target):
-        x, med, _, _, _ = _binned_median_iqr_standard(
-            data[city], "diameter", col, SELECTED_DIAMETERS)
-        match = np.flatnonzero(x == target)
-        return med[match[0]] if len(match) else np.nan
-
-    def class_median_range(city, col, targets):
-        values = [target_median(city, col, target) for target in targets]
-        values = np.asarray(values, dtype=float)
-        values = values[np.isfinite(values)]
-        return ((values.min(), values.max()) if len(values)
-                else (np.nan, np.nan))
-
-    def diameter_share(city, dmin=100, dmax=500):
-        d = data[city]["diameter"].replace([np.inf, -np.inf], np.nan).dropna()
-        return 100.0 * ((d >= dmin) & (d <= dmax)).sum() / len(d)
-
-    HK, TO, LA = "Hong Kong", "Toronto", "Los Angeles"
-    cities = (HK, TO, LA)
-    large = (1200, 1500, 1800, 2100, 2400)
-    h_depth = (1200, 1500, 1800, 2100)
-    share = {city: diameter_share(city) for city in cities}
-    shs_225 = {city: target_median(city, "SHS_in", 225) for city in cities}
-    shs_900 = {city: target_median(city, "SHS_in", 900) for city in cities}
-    so_225 = {city: target_median(city, "SO_in", 225) for city in cities}
-    so_900 = {city: target_median(city, "SO_in", 900) for city in cities}
-    av_225 = {city: target_median(city, "A_V", 225) for city in cities}
-    av_900 = {city: target_median(city, "A_V", 900) for city in cities}
-    ranges = {
-        metric: {
-            city: class_median_range(city, metric, large)
-            for city in cities
-        }
-        for metric in ("SHS_in", "SH2S", "distance", "dcorr_dt")
-    }
-    hk_h = [target_median(HK, "h_D", target) for target in h_depth]
-    to_h = [target_median(TO, "h_D", target) for target in h_depth]
-    la_h = [target_median(LA, "h_D", target) for target in h_depth]
-
-    return f"""\
-Pipe-size structure decouples sulphide sources from gas exposure and corrosion
-
-Across the three gravity-sewer networks, 100–500-mm pipes accounted for
-{fv(share[HK],1)}%, {fv(share[TO],1)}% and {fv(share[LA],1)}% of segments in Hong
-Kong, Toronto and Los Angeles, respectively. From the 225- to 900-mm classes,
-median dissolved sulphide increased from {fv(shs_225[HK])} to {fv(shs_900[HK])}
-gS m^-3 in Hong Kong, from {fv(shs_225[TO])} to {fv(shs_900[TO])} gS m^-3 in
-Toronto and from {fv(shs_225[LA])} to {fv(shs_900[LA])} gS m^-3 in Los Angeles
-(Fig. 3a). Across the 1,200–2,400-mm classes, Hong Kong had class-median
-headspace H2S of {fv(ranges["SH2S"][HK][0],1)}–{fv(ranges["SH2S"][HK][1],1)}
-ppm and corrosion rates of {fv(ranges["dcorr_dt"][HK][0])}–
-{fv(ranges["dcorr_dt"][HK][1])} mm yr^-1, compared with
-{fv(ranges["SH2S"][TO][0],1)}–{fv(ranges["SH2S"][TO][1],1)} ppm and
-{fv(ranges["dcorr_dt"][TO][0])}–{fv(ranges["dcorr_dt"][TO][1])} mm yr^-1 in
-Toronto, and {fv(ranges["SH2S"][LA][0],1)}–{fv(ranges["SH2S"][LA][1],1)} ppm
-and {fv(ranges["dcorr_dt"][LA][0])}–{fv(ranges["dcorr_dt"][LA][1])} mm yr^-1
-in Los Angeles (Fig. 3b,d). Hong Kong's impact radius also increased most
-strongly, spanning {fv(ranges["distance"][HK][0],3)}–
-{fv(ranges["distance"][HK][1],3)} m, compared with maxima of
-{fv(ranges["distance"][TO][1],3)} m in Toronto and
-{fv(ranges["distance"][LA][1],3)} m in Los Angeles (Fig. 3c). These risk
-contrasts occurred despite overlapping large-pipe dissolved-sulphide ranges:
-{fv(ranges["SHS_in"][HK][0])}–{fv(ranges["SHS_in"][HK][1])} gS m^-3 in Hong
-Kong, {fv(ranges["SHS_in"][TO][0])}–{fv(ranges["SHS_in"][TO][1])} in Toronto
-and {fv(ranges["SHS_in"][LA][0])}–{fv(ranges["SHS_in"][LA][1])} in Los
-Angeles. We therefore used partial Spearman analysis to distinguish associated
-biochemical and hydraulic controls.
-
-Dissolved oxygen was the dominant negative correlate of dissolved sulphide
-(partial rho = {fv(imp("SHS_in", "SO_in"))}), whereas A/V was the strongest
-positive secondary correlate (rho = {fv(imp("SHS_in", "A_V"))}; Fig. 3e).
-Flow rate and sulphate showed weaker positive associations (rho =
-{fv(imp("SHS_in", "flowrate"))} and {fv(imp("SHS_in", "SSO4_in"))},
-respectively). Median dissolved oxygen declined between the 225- and 900-mm
-classes from {fv(so_225[HK])} to {fv(so_900[HK])} g m^-3 in Hong Kong, from
-{fv(so_225[TO])} to {fv(so_900[TO])} in Toronto and from {fv(so_225[LA])} to
-{fv(so_900[LA])} in Los Angeles (Fig. 3i). Over the same classes, median A/V
-declined from {fv(av_225[HK],1)} to {fv(av_900[HK],1)} m^-1 in Hong Kong,
-from {fv(av_225[TO],1)} to {fv(av_900[TO],1)} in Toronto and from
-{fv(av_225[LA],1)} to {fv(av_900[LA],1)} in Los Angeles (Fig. 3k). Together,
-these patterns indicate that oxygen inhibition and surface exposure jointly
-structure dissolved sulphide, without by themselves establishing causality.
-
-Dissolved sulphide remained the strongest correlate of headspace H2S,
-dispersion impact radius and corrosion rate (partial rho =
-{fv(imp("SH2S", "SHS_in"))}, {fv(imp("distance", "SHS_in"))} and
-{fv(imp("dcorr_dt", "SHS_in"))}, respectively; Fig. 3f–h). Relative water
-depth, h/D, was the second-strongest correlate of headspace H2S and impact
-radius (rho = {fv(imp("SH2S", "h_D"))} and
-{fv(imp("distance", "h_D"))}, respectively), but was nearly uncorrelated with
-corrosion (rho = {fv(imp("dcorr_dt", "h_D"))}). Across the 1,200–2,100-mm
-classes, Hong Kong's median h/D ({", ".join(fv(v,3) for v in hk_h)}) exceeded
-Toronto's ({", ".join(fv(v,3) for v in to_h)}) but was often lower than Los
-Angeles' ({", ".join(fv(v,3) for v in la_h)}; Fig. 3l), even though Hong Kong
-had higher headspace H2S and corrosion. Thus, relative water depth modifies
-risk but does not determine it alone. Corrosion also showed secondary
-associations with flow rate (rho = {fv(imp("dcorr_dt", "flowrate"))}), Vg/Ag
-(rho = {fv(imp("dcorr_dt", "Vg_Ag"))}) and A/V
-(rho = {fv(imp("dcorr_dt", "A_V"))}; Fig. 3h). These associations distinguish
-controls on aqueous sulphide, gas exposure and material loss but do not alone
-establish causality.
-"""
-
-
-# ════════════════════════════════════════════════════════════════════
-# FIGURE TITLE & CAPTION (Nature style)
-# ════════════════════════════════════════════════════════════════════
-def build_figure_caption():
-    title = ("Fig. 3 | Diameter-resolved sulphide exposure, atmospheric "
-             "dispersion and corrosion across three sewer networks.")
-
-    caption = (
-        "Segment-level model outputs for Hong Kong, Toronto and Los Angeles were "
-        "aggregated into 14 common target pipe-diameter classes (225, 300, 375, "
-        "450, 525, 600, 675, 750, 900, 1,200, 1,500, 1,800, 2,100 and 2,400 mm). "
-        "Light background bands distinguish upstream (D < 500 mm), midstream "
-        "(500 ≤ D < 1,200 mm) and downstream (1,200 ≤ D ≤ 2,500 mm) sections; "
-        "dashed vertical lines mark the 500- and 1,200-mm boundaries. a–d, Influent "
-        "dissolved sulphide concentration, headspace H₂S concentration, ground-level "
-        "dispersion impact radius and gas-phase corrosion rate, respectively. "
-        "i–l, Influent dissolved oxygen concentration, pipe slope, wetted "
-        "surface-area-to-water-volume ratio (A/V) and relative water depth (h/D), "
-        "respectively. In diameter-resolved panels (a–d,i–l), symbols show class "
-        "medians, envelopes denote the interquartile range and symbol area scales "
-        "with the logarithm of the number of segments; classes with n < 30 are not "
-        "shown. The common 225-mm target represents pipes from 187.5 to <262.5 mm, "
-        "and pipes below 187.5 mm are excluded from these summaries. Panel a is "
-        "displayed from 0 to 2 g S m⁻³; observations and interquartile-range bounds "
-        "above this limit remain in the analysis. e–h, Partial Spearman correlations "
-        "of the biochemical and hydraulic predictors with dissolved sulphide, "
-        "headspace H₂S, dispersion impact radius and corrosion rate, respectively. "
-        "Bars show the mean partial ρ across cities and overlaid symbols show "
-        "city-specific estimates, controlling for the remaining predictors "
-        "(dissolved sulphide, dissolved oxygen, sulphate, flow rate, slope, A/V, "
-        "Vg/Ag, velocity and h/D). Brown and navy bars indicate positive and "
-        "negative associations, respectively. Rising mains were excluded before "
-        "aggregation and correlation analysis. Correlations required at least 50 "
-        "complete observations and describe conditional associations rather than "
-        "causal effects."
-    )
-    return title, caption
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -835,18 +683,14 @@ if __name__ == "__main__":
     print("Loading baseline data ...")
     data = load_data()
 
-    # ── 若开启开关：先剔除所有压力管，再进行后续所有计算与绘图 ──
     if EXCLUDE_RISING_MAIN:
-        print("EXCLUDE_RISING_MAIN = True：剔除所有压力管(rising_main) ...")
         data = drop_rising_mains(data)
-        SPLIT_PIPE_TYPE = False   # 顶层作用域，直接改写全局变量
-
+        SPLIT_PIPE_TYPE = False  
 
     print("Detecting standard pipe diameters per city ...")
     city_standards = compute_city_standards(data, x_col="diameter")
     print("  Selected shared diameters (mm): "
           + ", ".join(f"{v:.0f}" for v in COMMON_PLOT_DIAMETERS))
-
 
 
     FEATS = {
@@ -966,29 +810,11 @@ if __name__ == "__main__":
     out_png = os.path.join(OUT_DIR, "Figure3.png")
     fig.savefig(out_png, dpi=DPI, facecolor=BG_FIG, transparent=False)
 
-    _title, _caption = build_figure_caption()
-    out_caption = os.path.join(OUT_DIR, "Figure3_caption_nature_water.txt")
-    Path(out_caption).write_text(
-        _title + "\n\n" + _caption + "\n", encoding="utf-8"
-    )
-
     print("\n✓ Figure saved:")
     print(f"    {out_png} (600 dpi PNG)")
-    print(f"    {out_caption} (Nature Water-style caption)")
 
-    # ── Nature-style Results paragraph (with computed numbers) ──
-    print("\n" + "=" * 72)
-    print("RESULTS (Nature style, auto-filled with computed statistics)")
-    print("=" * 72 + "\n")
-    print(build_results_text(data, importance))
 
-    # ── Nature-style figure title & caption ──
-    print("\n" + "=" * 72)
-    print("FIGURE TITLE & CAPTION (Nature style)")
-    print("=" * 72 + "\n")
-    print(_title)
-    print()
-    print(_caption)
+
 
     if not args.no_show:
         plt.show()
