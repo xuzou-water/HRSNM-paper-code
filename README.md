@@ -37,6 +37,17 @@ Several large inputs are stored with Git LFS. Install Git LFS before cloning,
 or run `git lfs pull` in an existing clone to download them.
 
 The workflow is CPU- and memory-based; a GPU is not required.
+Typical installation time on a standard desktop computer: Within 30 min
+
+### Software requirements
+
+The code is implemented in Python 3.10. Runtime dependencies include NumPy,
+pandas, NetworkX, tqdm, SciPy, Shapely, scikit-learn, Matplotlib,
+GeoPandas, openpyxl, seaborn, pyproj and Pillow.
+
+Dependencies and their versions are specified in `environment.yml`.
+The commands below use Bash. Git, Git LFS and Conda are required for
+the documented installation procedure.
 
 ## Reproduce Figures 1–5
 
@@ -55,6 +66,8 @@ Temperature: 15, 20 and 25 °C
 Sulphate:     5, 15 and 25 mg L−1
 COD:          250, 525 and 800 mg L−1
 ```
+
+The total running time in a 1024G memory server is 6 hours.
 
 Outputs are written by default to a sibling directory named
 `<repository>_results`. Resource use and output location can be adjusted:
