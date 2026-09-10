@@ -10,7 +10,6 @@ Simulation outputs, caches, generated figures and manuscript files remain
 excluded. See [`data/README.md`](data/README.md) for the data inventory and
 integrity-check instructions.
 
-For Chinese documentation, see [`README_CN.md`](README_CN.md).
 
 ## Repository structure
 
